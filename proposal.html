@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -7,82 +7,159 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-zinc-950 light:bg-zinc-50 text-zinc-100 light:text-zinc-900 min-h-screen">
 
-  <div class="max-w-4xl mx-auto px-6 py-10">
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+
+  <div class="max-w-4xl mx-auto px-6 py-12">
+
+    <!-- Top Bar -->
     <div class="flex justify-between items-center mb-8">
-      <button onclick="window.location.href='index.html'" class="flex items-center gap-2 text-violet-400 hover:text-white">
-        ← Back
+      <button onclick="window.location.href='index.html'" 
+        class="flex items-center gap-2 text-violet-400 hover:text-white">
+        ← Back to Generator
       </button>
+
       <div class="flex gap-3">
-        <button onclick="saveCurrent()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-2xl">Save to History</button>
-        <button onclick="copyProposal()" class="px-5 py-2.5 border border-zinc-700 rounded-2xl">Copy</button>
-        <button onclick="window.print()" class="px-5 py-2.5 bg-zinc-700 hover:bg-zinc-600 rounded-2xl">PDF</button>
+        <button onclick="copyProposal()" 
+          class="px-6 py-3 border border-zinc-700 hover:bg-zinc-900 rounded-2xl">
+          Copy Text
+        </button>
+
+        <button onclick="window.print()" 
+          class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl">
+          Save as PDF
+        </button>
       </div>
     </div>
 
-    <div id="proposalContent" class="bg-zinc-900 light:bg-white p-12 rounded-3xl shadow-2xl text-lg leading-relaxed min-h-[600px]">
-      <!-- JS injected -->
+    <!-- Proposal Output -->
+    <div id="proposalContent" 
+      class="bg-zinc-900 p-12 rounded-3xl shadow-2xl text-lg leading-relaxed min-h-[600px]">
+
+      <div class="text-center py-20">
+        <p class="text-violet-400 text-2xl">✨ Preparing your proposal...</p>
+      </div>
+
     </div>
 
-    <!-- Quick Status -->
-    <div class="mt-8 flex gap-4 justify-center">
-      <button onclick="updateStatus('won')" class="px-6 py-3 bg-green-600 rounded-2xl">Mark as Won 🎉</button>
-      <button onclick="updateStatus('lost')" class="px-6 py-3 bg-red-600 rounded-2xl">Mark as Lost</button>
-      <button onclick="updateStatus('pending')" class="px-6 py-3 bg-amber-600 rounded-2xl">Keep Pending</button>
-    </div>
   </div>
 
   <script>
-    let currentData = JSON.parse(localStorage.getItem('currentProposal') || '{}');
+    async function loadProposal() {
+      const data = JSON.parse(localStorage.getItem('currentProposal') || '{}');
+      const box = document.getElementById('proposalContent');
 
-    if (!currentData.title) {
-      document.getElementById('proposalContent').innerHTML = `<p class="text-center py-20 text-red-400">No proposal found. Go back and generate one.</p>`;
-    } else {
-      renderProposal();
-    }
+      if (!data.title) {
+        box.innerHTML = `
+          <p class="text-red-400 text-center py-20">
+            No proposal found. Go back and generate one.
+          </p>`;
+        return;
+      }
 
-    function renderProposal() {
-      const html = `
-        <h1 class="text-4xl font-bold mb-8">${currentData.title}</h1>
-        <p class="text-2xl mb-10">Dear ${currentData.client},</p>
-        <p class="mb-8">I'm excited about your project <strong>${currentData.title}</strong>. As a ${currentData.role}, I bring proven expertise to deliver outstanding results.</p>
-        <p class="mb-10">${currentData.desc || 'This project requires high-quality delivery with attention to detail.'}</p>
-        
-        <div class="bg-zinc-800 light:bg-zinc-100 p-8 rounded-2xl my-10">
-          <h3 class="font-semibold mb-4">Why Me?</h3>
-          <ul class="space-y-3 list-disc pl-6">
-            <li>Specialized in ${currentData.role.toLowerCase()}</li>
-            <li>Fast turnaround &amp; clear communication</li>
-            <li>${currentData.budget ? `Aligned with your budget of ${currentData.budget}` : 'Flexible and transparent pricing'}</li>
-          </ul>
+      // Loading state
+      box.innerHTML = `
+        <div class="text-center py-20">
+          <p class="text-violet-400 text-2xl">✨ Generating AI proposal...</p>
         </div>
-        <p class="font-semibold">Looking forward to working together!</p>
-        <p class="mt-12">Best regards,<br><strong>Your Name</strong><br>${currentData.role}</p>
       `;
-      document.getElementById('proposalContent').innerHTML = html;
+
+      try {
+        const res = await fetch("http://127.0.0.1:5000/generate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            title: data.title,
+            client: data.client,
+            description: data.desc,
+            role: data.role,
+            budget: data.budget,
+            tone: data.tone,
+            length: data.length
+          })
+        });
+        const result = await res.json();
+
+// 🔥 SAVE GENERATED PROPOSAL PROPERLY
+let proposals = JSON.parse(localStorage.getItem('propelProposals')) || [];
+let current = JSON.parse(localStorage.getItem('currentProposal'));
+
+// add generated text
+current.generated = result.proposal;
+
+// update list correctly
+proposals = proposals.map(p => {
+  if (p.id === current.id) {
+    return current;
+  }
+  return p;
+});
+
+// save back
+localStorage.setItem('propelProposals', JSON.stringify(proposals));
+localStorage.setItem('currentProposal', JSON.stringify(current));
+
+
+        // AI Output
+        box.innerHTML = `
+          <h1 class="text-4xl font-bold mb-8 text-violet-400">${data.title}</h1>
+          <div class="whitespace-pre-wrap text-zinc-200">
+            ${result.proposal}
+          </div>
+        `;
+
+      } catch (err) {
+
+        console.log("AI failed, using fallback template");
+
+        // Fallback Template (your original)
+        const html = `
+          <h1 class="text-4xl font-bold mb-8 text-violet-400">${data.title}</h1>
+          <p class="text-2xl mb-10">Dear ${data.client},</p>
+          
+          <p class="mb-8">
+            I was excited to see your project <strong>${data.title}</strong>. 
+            As a ${data.role}, I can deliver high-quality results that meet your expectations.
+          </p>
+          
+          <p class="mb-10">
+            ${data.desc || 'This project requires professional execution with attention to detail.'}
+          </p>
+          
+          <div class="bg-zinc-800 p-8 rounded-2xl my-10">
+            <h3 class="font-semibold mb-5">Why Work With Me?</h3>
+            <ul class="space-y-3 list-disc pl-6">
+              <li>Expert in ${data.role.toLowerCase()}</li>
+              <li>Fast turnaround and clear communication</li>
+              <li>High-quality work with attention to detail</li>
+              ${data.budget ? `<li>Fits within your budget of ${data.budget}</li>` : ''}
+            </ul>
+          </div>
+          
+          <p class="mb-8">I'm confident we can create something outstanding together.</p>
+          
+          <p class="font-semibold">Looking forward to your reply!</p>
+          <p class="mt-12">
+            Best regards,<br>
+            <strong>Your Name</strong><br>
+            ${data.role}
+          </p>
+        `;
+
+        box.innerHTML = html;
+      }
     }
 
     function copyProposal() {
-      navigator.clipboard.writeText(document.getElementById('proposalContent').innerText);
-      alert("✅ Copied to clipboard!");
+      const text = document.getElementById('proposalContent').innerText;
+      navigator.clipboard.writeText(text)
+        .then(() => alert("✅ Proposal copied!"));
     }
 
-    function saveCurrent() {
-      let proposals = JSON.parse(localStorage.getItem('propelProposals')) || [];
-      const exists = proposals.find(p => p.id === currentData.id);
-      if (!exists) {
-        proposals.unshift(currentData);
-        localStorage.setItem('propelProposals', JSON.stringify(proposals));
-      }
-      alert("Proposal saved to your history!");
-    }
-
-    function updateStatus(status) {
-      currentData.status = status;
-      alert(`Proposal marked as ${status.toUpperCase()}!`);
-      // You can later show stats in history
-    }
+    window.onload = loadProposal;
   </script>
+
 </body>
 </html>
