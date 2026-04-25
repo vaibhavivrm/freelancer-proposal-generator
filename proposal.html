@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Proposal - PropelWrite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-zinc-950 light:bg-zinc-50 text-zinc-100 light:text-zinc-900 min-h-screen">
+
+  <div class="max-w-4xl mx-auto px-6 py-10">
+    <div class="flex justify-between items-center mb-8">
+      <button onclick="window.location.href='index.html'" class="flex items-center gap-2 text-violet-400 hover:text-white">
+        ← Back
+      </button>
+      <div class="flex gap-3">
+        <button onclick="saveCurrent()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 rounded-2xl">Save to History</button>
+        <button onclick="copyProposal()" class="px-5 py-2.5 border border-zinc-700 rounded-2xl">Copy</button>
+        <button onclick="window.print()" class="px-5 py-2.5 bg-zinc-700 hover:bg-zinc-600 rounded-2xl">PDF</button>
+      </div>
+    </div>
+
+    <div id="proposalContent" class="bg-zinc-900 light:bg-white p-12 rounded-3xl shadow-2xl text-lg leading-relaxed min-h-[600px]">
+      <!-- JS injected -->
+    </div>
+
+    <!-- Quick Status -->
+    <div class="mt-8 flex gap-4 justify-center">
+      <button onclick="updateStatus('won')" class="px-6 py-3 bg-green-600 rounded-2xl">Mark as Won 🎉</button>
+      <button onclick="updateStatus('lost')" class="px-6 py-3 bg-red-600 rounded-2xl">Mark as Lost</button>
+      <button onclick="updateStatus('pending')" class="px-6 py-3 bg-amber-600 rounded-2xl">Keep Pending</button>
+    </div>
+  </div>
+
+  <script>
+    let currentData = JSON.parse(localStorage.getItem('currentProposal') || '{}');
+
+    if (!currentData.title) {
+      document.getElementById('proposalContent').innerHTML = `<p class="text-center py-20 text-red-400">No proposal found. Go back and generate one.</p>`;
+    } else {
+      renderProposal();
+    }
+
+    function renderProposal() {
+      const html = `
+        <h1 class="text-4xl font-bold mb-8">${currentData.title}</h1>
+        <p class="text-2xl mb-10">Dear ${currentData.client},</p>
+        <p class="mb-8">I'm excited about your project <strong>${currentData.title}</strong>. As a ${currentData.role}, I bring proven expertise to deliver outstanding results.</p>
+        <p class="mb-10">${currentData.desc || 'This project requires high-quality delivery with attention to detail.'}</p>
+        
+        <div class="bg-zinc-800 light:bg-zinc-100 p-8 rounded-2xl my-10">
+          <h3 class="font-semibold mb-4">Why Me?</h3>
+          <ul class="space-y-3 list-disc pl-6">
+            <li>Specialized in ${currentData.role.toLowerCase()}</li>
+            <li>Fast turnaround &amp; clear communication</li>
+            <li>${currentData.budget ? `Aligned with your budget of ${currentData.budget}` : 'Flexible and transparent pricing'}</li>
+          </ul>
+        </div>
+        <p class="font-semibold">Looking forward to working together!</p>
+        <p class="mt-12">Best regards,<br><strong>Your Name</strong><br>${currentData.role}</p>
+      `;
+      document.getElementById('proposalContent').innerHTML = html;
+    }
+
+    function copyProposal() {
+      navigator.clipboard.writeText(document.getElementById('proposalContent').innerText);
+      alert("✅ Copied to clipboard!");
+    }
+
+    function saveCurrent() {
+      let proposals = JSON.parse(localStorage.getItem('propelProposals')) || [];
+      const exists = proposals.find(p => p.id === currentData.id);
+      if (!exists) {
+        proposals.unshift(currentData);
+        localStorage.setItem('propelProposals', JSON.stringify(proposals));
+      }
+      alert("Proposal saved to your history!");
+    }
+
+    function updateStatus(status) {
+      currentData.status = status;
+      alert(`Proposal marked as ${status.toUpperCase()}!`);
+      // You can later show stats in history
+    }
+  </script>
+</body>
+</html>

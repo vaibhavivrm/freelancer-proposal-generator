@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Proposals - PropelWrite</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+
+  <div class="max-w-6xl mx-auto px-6 py-12">
+    <div class="flex justify-between items-center mb-10">
+      <button onclick="window.location.href='index.html'" class="flex items-center gap-2 text-violet-400 hover:text-white">
+        ← Back to Generator
+      </button>
+      <div class="flex gap-4">
+        <button onclick="clearAllHistory()" class="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-3xl font-medium transition">
+          <i class="fa-solid fa-trash"></i> Clear All History
+        </button>
+      </div>
+    </div>
+
+    <h1 class="text-4xl font-bold mb-10">My Saved Proposals</h1>
+
+    <div id="historyGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+
+    <div id="emptyState" class="hidden text-center py-20">
+      <i class="fa-solid fa-folder-open text-6xl text-zinc-700 mb-4"></i>
+      <p class="text-zinc-500 text-xl">No proposals yet. Generate some from the home page!</p>
+    </div>
+  </div>
+
+  <script>
+    let proposals = JSON.parse(localStorage.getItem('propelProposals')) || [];
+
+    function renderHistory() {
+      const container = document.getElementById('historyGrid');
+      const empty = document.getElementById('emptyState');
+
+      if (proposals.length === 0) {
+        container.classList.add('hidden');
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      container.classList.remove('hidden');
+      empty.classList.add('hidden');
+
+      container.innerHTML = proposals.map(p => `
+        <div onclick="loadProposal(${p.id})" class="glass rounded-3xl p-8 cursor-pointer hover:border-violet-500 transition border border-transparent">
+          <div class="flex justify-between items-start">
+            <h3 class="font-semibold text-xl line-clamp-1">${p.title}</h3>
+            <span class="text-xs px-3 py-1 bg-zinc-800 rounded-full">${p.date}</span>
+          </div>
+          <p class="text-zinc-400 mt-2">${p.client} • ${p.role}</p>
+          <p class="text-sm text-zinc-500 mt-4 line-clamp-3">${p.desc ? p.desc.substring(0, 140) + '...' : 'No description'}</p>
+          
+          <div class="mt-6 flex justify-between items-center">
+            <span class="text-xs uppercase tracking-wider ${p.status === 'won' ? 'text-green-400' : p.status === 'lost' ? 'text-red-400' : 'text-amber-400'}">
+              ${p.status.toUpperCase()}
+            </span>
+            <button onclick="event.stopImmediatePropagation(); deleteSingleProposal(${p.id});" class="text-red-400 hover:text-red-500 text-sm">
+              Delete
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function loadProposal(id) {
+      const prop = proposals.find(p => p.id === id);
+      if (prop) {
+        localStorage.setItem('currentProposal', JSON.stringify(prop));
+        window.location.href = "proposal.html";
+      }
+    }
+
+    function deleteSingleProposal(id) {
+      if (confirm("Delete this proposal?")) {
+        proposals = proposals.filter(p => p.id !== id);
+        localStorage.setItem('propelProposals', JSON.stringify(proposals));
+        renderHistory();
+      }
+    }
+
+    function clearAllHistory() {
+      if (confirm("Are you sure you want to delete ALL proposals?\n\nThis action cannot be undone.")) {
+        proposals = [];
+        localStorage.setItem('propelProposals', JSON.stringify(proposals));
+        renderHistory();
+        alert("All history has been cleared.");
+      }
+    }
+
+    // Initial render
+    window.onload = renderHistory;
+  </script>
+</body>
+</html>
