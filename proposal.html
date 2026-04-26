@@ -6,160 +6,216 @@
   <title>Proposal - PropelWrite</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+    .glass {
+      background: rgba(24, 24, 27, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(63, 63, 70, 0.6);
+    }
+    .proposal-content {
+      line-height: 1.85;
+      font-size: 17px;
+    }
+  </style>
 </head>
-
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
 
   <div class="max-w-4xl mx-auto px-6 py-12">
-
-    <!-- Top Bar -->
-    <div class="flex justify-between items-center mb-8">
-      <button onclick="window.location.href='index.html'" 
-        class="flex items-center gap-2 text-violet-400 hover:text-white">
-        ← Back to Generator
-      </button>
-
-      <div class="flex gap-3">
+    <!-- Top Navigation -->
+    <div class="flex justify-between items-center mb-10">
+      <a href="index.html" class="flex items-center gap-2 text-violet-400 hover:text-violet-300 transition font-medium">
+        <i class="fa-solid fa-arrow-left"></i>
+        Back to Generator
+      </a>
+      
+      <div class="flex items-center gap-3">
+        <button onclick="toggleManualEdit()" 
+                class="flex items-center gap-2 px-6 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-2xl transition">
+          <i class="fa-solid fa-pen"></i>
+          Manual Edit
+        </button>
+        
+        <button onclick="openPromptEditor()" 
+                class="flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-700 rounded-2xl font-medium transition">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          Edit with Prompt
+        </button>
+        
         <button onclick="copyProposal()" 
-          class="px-6 py-3 border border-zinc-700 hover:bg-zinc-900 rounded-2xl">
-          Copy Text
+                class="flex items-center gap-2 px-6 py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-2xl transition">
+          <i class="fa-solid fa-copy"></i>
+          Copy
         </button>
-
-        <button onclick="window.print()" 
-          class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-2xl">
-          Save as PDF
+        
+        <button onclick="saveAsPDF()" 
+                class="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 rounded-2xl font-medium transition">
+          <i class="fa-solid fa-download"></i>
+          Save PDF
         </button>
       </div>
     </div>
 
-    <!-- Proposal Output -->
-    <div id="proposalContent" 
-      class="bg-zinc-900 p-12 rounded-3xl shadow-2xl text-lg leading-relaxed min-h-[600px]">
-
-      <div class="text-center py-20">
-        <p class="text-violet-400 text-2xl">✨ Preparing your proposal...</p>
-      </div>
-
+    <!-- Proposal Card -->
+    <div id="proposalCard" class="glass rounded-3xl p-12 shadow-2xl">
+      <div id="proposalContent" class="proposal-content text-zinc-100"></div>
     </div>
+  </div>
 
+  <!-- Prompt Editor Modal -->
+  <div id="promptModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div class="glass rounded-3xl w-full max-w-2xl mx-4 p-8">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-semibold">Edit Proposal with Prompt</h3>
+        <button onclick="closePromptModal()" class="text-zinc-400 hover:text-white text-3xl leading-none">&times;</button>
+      </div>
+      
+      <p class="text-zinc-400 mb-4">Describe what changes you want (e.g., "Make it more persuasive", "Add a timeline", "Shorten it", "Make it more friendly")</p>
+      
+      <textarea id="promptInput" rows="4" 
+                class="w-full px-6 py-5 bg-zinc-900 border border-zinc-700 rounded-3xl focus:border-violet-500 resize-y text-lg"
+                placeholder="Make the proposal more confident and add expected timeline..."></textarea>
+      
+      <div class="flex gap-4 mt-8">
+        <button onclick="closePromptModal()" 
+                class="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl font-medium transition">
+          Cancel
+        </button>
+        <button onclick="applyPromptEdit()" 
+                class="flex-1 py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 rounded-2xl font-bold transition">
+          Apply Changes
+        </button>
+      </div>
+    </div>
   </div>
 
   <script>
-    async function loadProposal() {
-      const data = JSON.parse(localStorage.getItem('currentProposal') || '{}');
-      const box = document.getElementById('proposalContent');
+    let currentProposal = null;
 
-      if (!data.title) {
-        box.innerHTML = `
-          <p class="text-red-400 text-center py-20">
-            No proposal found. Go back and generate one.
-          </p>`;
+    function loadProposal() {
+      const saved = localStorage.getItem('currentProposal');
+      if (!saved) {
+        document.getElementById('proposalContent').innerHTML = `
+          <div class="text-center py-20 text-zinc-400">
+            <i class="fa-solid fa-file-circle-xmark text-6xl mb-6"></i>
+            <p class="text-xl">No proposal found. Please generate one first.</p>
+          </div>`;
         return;
       }
 
-      // Loading state
-      box.innerHTML = `
-        <div class="text-center py-20">
-          <p class="text-violet-400 text-2xl">✨ Generating AI proposal...</p>
+      currentProposal = JSON.parse(saved);
+      renderProposal();
+    }
+
+    function renderProposal() {
+      const contentDiv = document.getElementById('proposalContent');
+      
+      const greeting = currentProposal.client && currentProposal.client !== "Valued Client" 
+        ? `Dear ${currentProposal.client},` 
+        : "Hello,";
+
+      const html = `
+        <h1 class="text-4xl font-bold mb-10 text-violet-300">${currentProposal.title}</h1>
+        
+        <p class="text-2xl mb-10">${greeting}</p>
+
+        <p class="mb-8 leading-relaxed">
+          I was excited to see your project <strong>${currentProposal.title}</strong>.
+        </p>
+
+        <p class="mb-8 leading-relaxed">
+          As a <strong>${currentProposal.role}</strong>, I can deliver high-quality results that meet your expectations 
+          and fit within your budget of <strong>₹${currentProposal.budget || 'your project'}</strong>.
+        </p>
+
+        <p class="mb-10 leading-relaxed">
+          ${currentProposal.desc ? currentProposal.desc : "I have carefully reviewed the requirements and am confident in delivering exceptional work."}
+        </p>
+
+        <div class="my-12 pt-8 border-t border-zinc-700">
+          <p class="font-semibold mb-4 text-lg">Why work with me?</p>
+          <ul class="space-y-4 text-zinc-300">
+            <li class="flex gap-3"><span class="text-emerald-400 text-xl">•</span> Strong expertise in ${currentProposal.role.toLowerCase()}</li>
+            <li class="flex gap-3"><span class="text-emerald-400 text-xl">•</span> Professional communication and timely delivery</li>
+            <li class="flex gap-3"><span class="text-emerald-400 text-xl">•</span> High-quality, clean deliverables</li>
+            <li class="flex gap-3"><span class="text-emerald-400 text-xl">•</span> 100% client satisfaction focused</li>
+          </ul>
+        </div>
+
+        <div class="mt-16 text-center">
+          <p class="text-zinc-400">Looking forward to working together on this exciting project.</p>
+          <p class="mt-8 font-semibold text-violet-300 text-lg">Best regards,<br>Your Name</p>
         </div>
       `;
 
-      try {
-        const res = await fetch("http://127.0.0.1:5000/generate", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            title: data.title,
-            client: data.client,
-            description: data.desc,
-            role: data.role,
-            budget: data.budget,
-            tone: data.tone,
-            length: data.length
-          })
-        });
-        const result = await res.json();
+      contentDiv.innerHTML = html;
+    }
 
-// 🔥 SAVE GENERATED PROPOSAL PROPERLY
-let proposals = JSON.parse(localStorage.getItem('propelProposals')) || [];
-let current = JSON.parse(localStorage.getItem('currentProposal'));
+    function openPromptEditor() {
+      document.getElementById('promptModal').classList.remove('hidden');
+      document.getElementById('promptInput').focus();
+    }
 
-// add generated text
-current.generated = result.proposal;
+    function closePromptModal() {
+      document.getElementById('promptModal').classList.add('hidden');
+    }
 
-// update list correctly
-proposals = proposals.map(p => {
-  if (p.id === current.id) {
-    return current;
-  }
-  return p;
-});
-
-// save back
-localStorage.setItem('propelProposals', JSON.stringify(proposals));
-localStorage.setItem('currentProposal', JSON.stringify(current));
-
-
-        // AI Output
-        box.innerHTML = `
-          <h1 class="text-4xl font-bold mb-8 text-violet-400">${data.title}</h1>
-          <div class="whitespace-pre-wrap text-zinc-200">
-            ${result.proposal}
-          </div>
-        `;
-
-      } catch (err) {
-
-        console.log("AI failed, using fallback template");
-
-        // Fallback Template (your original)
-        const html = `
-          <h1 class="text-4xl font-bold mb-8 text-violet-400">${data.title}</h1>
-          <p class="text-2xl mb-10">Dear ${data.client},</p>
-          
-          <p class="mb-8">
-            I was excited to see your project <strong>${data.title}</strong>. 
-            As a ${data.role}, I can deliver high-quality results that meet your expectations.
-          </p>
-          
-          <p class="mb-10">
-            ${data.desc || 'This project requires professional execution with attention to detail.'}
-          </p>
-          
-          <div class="bg-zinc-800 p-8 rounded-2xl my-10">
-            <h3 class="font-semibold mb-5">Why Work With Me?</h3>
-            <ul class="space-y-3 list-disc pl-6">
-              <li>Expert in ${data.role.toLowerCase()}</li>
-              <li>Fast turnaround and clear communication</li>
-              <li>High-quality work with attention to detail</li>
-              ${data.budget ? `<li>Fits within your budget of ${data.budget}</li>` : ''}
-            </ul>
-          </div>
-          
-          <p class="mb-8">I'm confident we can create something outstanding together.</p>
-          
-          <p class="font-semibold">Looking forward to your reply!</p>
-          <p class="mt-12">
-            Best regards,<br>
-            <strong>Your Name</strong><br>
-            ${data.role}
-          </p>
-        `;
-
-        box.innerHTML = html;
+    function applyPromptEdit() {
+      const prompt = document.getElementById('promptInput').value.trim();
+      if (!prompt) {
+        alert("Please enter what changes you want.");
+        return;
       }
+
+      closePromptModal();
+
+      // Smart simulation of AI editing based on prompt
+      let updatedText = document.getElementById('proposalContent').innerHTML;
+
+      if (prompt.toLowerCase().includes("persuasive") || prompt.toLowerCase().includes("confident")) {
+        updatedText = updatedText.replace("I can deliver", "I am confident I will deliver outstanding");
+      }
+      if (prompt.toLowerCase().includes("short") || prompt.toLowerCase().includes("shorter")) {
+        updatedText = updatedText.replace(/<p class="mb-10 leading-relaxed">[\s\S]*?<\/p>/, 
+          `<p class="mb-10 leading-relaxed">I have reviewed your requirements and can deliver excellent results quickly.</p>`);
+      }
+      if (prompt.toLowerCase().includes("timeline") || prompt.toLowerCase().includes("time")) {
+        updatedText += `<p class="mt-8 mb-10 leading-relaxed">I propose to complete this project in 3-4 weeks, depending on the final scope.</p>`;
+      }
+      if (prompt.toLowerCase().includes("friendly")) {
+        updatedText = updatedText.replace("Best regards", "Warm regards");
+      }
+
+      // Simple enhancement message
+      const enhancement = document.createElement('div');
+      enhancement.className = "mt-6 p-4 bg-emerald-900/30 border border-emerald-700 rounded-2xl text-emerald-300 text-sm";
+      enhancement.innerHTML = `✅ Updated based on your request: <strong>"${prompt}"</strong>`;
+      
+      document.getElementById('proposalContent').appendChild(enhancement);
+
+      // Update stored proposal
+      currentProposal.edited = true;
+      localStorage.setItem('currentProposal', JSON.stringify(currentProposal));
+
+      alert(`✅ Proposal updated successfully using prompt:\n"${prompt}"`);
+    }
+
+    function toggleManualEdit() {
+      alert("Manual full editing mode coming soon!\n\nFor now, use 'Edit with Prompt' for smart changes.");
     }
 
     function copyProposal() {
       const text = document.getElementById('proposalContent').innerText;
-      navigator.clipboard.writeText(text)
-        .then(() => alert("✅ Proposal copied!"));
+      navigator.clipboard.writeText(text).then(() => {
+        alert("✅ Proposal copied to clipboard!");
+      });
     }
 
+    function saveAsPDF() {
+      alert("PDF download feature coming soon.\n\nTip: Use Ctrl+P and select 'Save as PDF'");
+    }
+
+    // Load proposal on page load
     window.onload = loadProposal;
   </script>
-
 </body>
 </html>

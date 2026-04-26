@@ -6,20 +6,26 @@
   <title>My Proposals - PropelWrite</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+  <style>
+    .glass {
+      background: rgba(24, 24, 27, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(63, 63, 70, 0.6);
+    }
+  </style>
 </head>
-
 <body class="bg-zinc-950 text-zinc-100 min-h-screen">
 
   <div class="max-w-6xl mx-auto px-6 py-12">
     
     <div class="flex justify-between items-center mb-10">
       <button onclick="window.location.href='index.html'" 
-        class="flex items-center gap-2 text-violet-400 hover:text-white">
+        class="flex items-center gap-2 text-violet-400 hover:text-white transition">
         ← Back to Generator
       </button>
 
       <button onclick="clearAllHistory()" 
-        class="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-3xl font-medium">
+        class="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-3xl font-medium transition">
         <i class="fa-solid fa-trash"></i> Clear All History
       </button>
     </div>
@@ -30,21 +36,42 @@
 
     <div id="emptyState" class="hidden text-center py-20">
       <i class="fa-solid fa-folder-open text-6xl text-zinc-700 mb-4"></i>
-      <p class="text-zinc-500 text-xl">No proposals yet. Generate some first!</p>
+      <p class="text-zinc-500 text-xl">No proposals yet.</p>
+      <p class="text-zinc-400 mt-2">Generate your first proposal from the home page!</p>
     </div>
   </div>
 
-  <!-- 🔥 MODAL -->
-  <div id="proposalModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center p-6 z-50">
-    <div class="bg-zinc-900 max-w-3xl w-full p-8 rounded-3xl overflow-y-auto max-h-[80vh]">
+  <!-- Proposal View Modal -->
+  <div id="proposalModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+    <div class="glass w-full max-w-4xl max-h-[85vh] overflow-hidden rounded-3xl flex flex-col">
       
-      <div class="flex justify-between mb-6">
-        <h2 class="text-2xl font-bold text-violet-400">Generated Proposal</h2>
-        <button onclick="closeModal()" class="text-red-400 text-xl">✖</button>
+      <!-- Modal Header -->
+      <div class="flex justify-between items-center border-b border-zinc-700 px-8 py-5">
+        <div>
+          <h2 id="modalTitle" class="text-2xl font-bold text-violet-300"></h2>
+          <p id="modalClient" class="text-zinc-400 text-sm"></p>
+        </div>
+        <button onclick="closeModal()" 
+          class="text-3xl text-zinc-400 hover:text-white transition">✕</button>
       </div>
 
-      <div id="modalContent" class="whitespace-pre-wrap text-zinc-300"></div>
+      <!-- Modal Content -->
+      <div class="flex-1 overflow-y-auto p-8">
+        <div id="modalContent" class="proposal-content text-zinc-100 text-[17px] leading-relaxed whitespace-pre-wrap"></div>
+      </div>
 
+      <!-- Modal Footer -->
+      <div class="border-t border-zinc-700 p-6 flex gap-4">
+        <button onclick="closeModal()" 
+          class="flex-1 py-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl font-medium transition">
+          Close
+        </button>
+        <button onclick="openInEditor()" 
+          class="flex-1 py-4 bg-violet-600 hover:bg-violet-700 rounded-2xl font-semibold transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-pen"></i>
+          Open in Editor
+        </button>
+      </div>
     </div>
   </div>
 
@@ -66,39 +93,30 @@
 
       container.innerHTML = proposals.map(p => `
         <div onclick="loadProposal(${p.id})" 
-          class="bg-zinc-900 rounded-3xl p-6 border border-zinc-800 hover:border-violet-500 transition cursor-pointer">
+          class="glass rounded-3xl p-6 border border-zinc-700 hover:border-violet-500 transition-all cursor-pointer group">
 
-          <div class="flex justify-between items-start">
-            <h3 class="font-semibold text-xl line-clamp-1">${p.title}</h3>
-            <span class="text-xs px-3 py-1 bg-zinc-800 rounded-full">${p.date}</span>
+          <div class="flex justify-between items-start mb-4">
+            <h3 class="font-semibold text-xl line-clamp-2 group-hover:text-violet-300 transition">${p.title}</h3>
+            <span class="text-xs px-3 py-1 bg-zinc-800 text-zinc-400 rounded-full whitespace-nowrap">${p.date}</span>
           </div>
 
-          <p class="text-zinc-400 mt-2">${p.client} • ${p.role}</p>
+          <p class="text-zinc-400 text-sm">${p.client || 'Client'} • ${p.role}</p>
 
-          <p class="text-sm text-zinc-500 mt-4 line-clamp-3">
-            ${p.desc ? p.desc.substring(0, 120) + '...' : 'No description'}
+          <p class="text-sm text-zinc-500 mt-4 line-clamp-3 min-h-[60px]">
+            ${p.desc ? p.desc.substring(0, 130) + '...' : 'No description provided'}
           </p>
 
-          <div class="mt-6 flex justify-between items-center">
-
-            <span class="text-xs uppercase tracking-wider 
-              ${p.status === 'won' ? 'text-green-400' : 
-                p.status === 'lost' ? 'text-red-400' : 'text-amber-400'}">
-              ${p.status.toUpperCase()}
+          <div class="mt-6 pt-4 border-t border-zinc-700 flex justify-between items-center">
+            <span class="text-xs uppercase tracking-wider text-amber-400 font-medium">
+              ${p.status ? p.status.toUpperCase() : 'PENDING'}
             </span>
 
-            <div class="flex gap-3">
-              <button onclick="event.stopPropagation(); viewProposal(${p.id})" 
-                class="text-violet-400 hover:text-white text-sm">
-                View
-              </button>
-
-              <button onclick="event.stopImmediatePropagation(); deleteSingleProposal(${p.id})" 
-                class="text-red-400 hover:text-red-500 text-sm">
-                Delete
-              </button>
+            <div class="flex gap-4 text-sm">
+              <button onclick="event.stopPropagation(); viewProposal(${p.id});" 
+                class="text-violet-400 hover:text-violet-300 font-medium">View</button>
+              <button onclick="event.stopPropagation(); deleteSingleProposal(${p.id});" 
+                class="text-red-400 hover:text-red-500 font-medium">Delete</button>
             </div>
-
           </div>
         </div>
       `).join('');
@@ -114,13 +132,55 @@
 
     function viewProposal(id) {
       const prop = proposals.find(p => p.id === id);
+      if (!prop) return;
 
+      document.getElementById('modalTitle').textContent = prop.title || "Untitled Proposal";
+      document.getElementById('modalClient').textContent = prop.client ? `Client: ${prop.client}` : '';
+
+      const contentDiv = document.getElementById('modalContent');
+
+      // Generate nice readable proposal text for modal
+      const greeting = prop.client && prop.client !== "Valued Client" 
+        ? `Dear ${prop.client},` 
+        : "Hello,";
+
+      const displayText = `
+${greeting}
+
+I was excited to see your project "${prop.title}".
+
+As a \( {prop.role}, I can deliver high-quality results that meet your expectations and fit within your budget of ₹ \){prop.budget || 'your project'}.
+
+${prop.desc ? prop.desc : "I have carefully reviewed the project requirements and am confident in delivering exceptional work."}
+
+Why work with me?
+• Strong expertise in ${prop.role.toLowerCase()}
+• Clear communication and timely delivery
+• High-quality, professional deliverables
+• Focused on your complete satisfaction
+
+Looking forward to discussing this further.
+
+Best regards,
+Your Name
+      `.trim();
+
+      contentDiv.textContent = displayText;
+
+      // Show modal
       const modal = document.getElementById("proposalModal");
-      const content = document.getElementById("modalContent");
-
-      content.innerText = prop.generated || "No generated proposal found.";
       modal.classList.remove("hidden");
       modal.classList.add("flex");
+    }
+
+    function openInEditor() {
+      closeModal();
+      // Get the last viewed proposal (you can improve this later)
+      const lastProp = proposals[0];
+      if (lastProp) {
+        localStorage.setItem('currentProposal', JSON.stringify(lastProp));
+        window.location.href = "proposal.html";
+      }
     }
 
     function closeModal() {
@@ -130,7 +190,7 @@
     }
 
     function deleteSingleProposal(id) {
-      if (confirm("Delete this proposal?")) {
+      if (confirm("Delete this proposal permanently?")) {
         proposals = proposals.filter(p => p.id !== id);
         localStorage.setItem('propelProposals', JSON.stringify(proposals));
         renderHistory();
@@ -138,13 +198,14 @@
     }
 
     function clearAllHistory() {
-      if (confirm("Delete ALL proposals?")) {
+      if (confirm("Are you sure you want to delete ALL proposals? This cannot be undone.")) {
         proposals = [];
         localStorage.setItem('propelProposals', JSON.stringify(proposals));
         renderHistory();
       }
     }
 
+    // Initialize
     window.onload = renderHistory;
   </script>
 
